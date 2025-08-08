@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "rootDir": "./",
+    "moduleResolution": "Node",
+    "lib":["ESNext"],
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "outDir": "./dist",
+    "strict": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames":true,
+    "baseUrl": "./",
+    "paths": {
+      "@shared/*": ["../shared/*"],
+      "@components/*": ["components/ui/*"],
+      "@pages/*":["pages/*"],
+      "@/*": ["../client/src/*"]
+    },
+    "types": ["vite"]
+  },
+  "ts-node": {
+    
+    "esm": true
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules"]
+}
