@@ -1,156 +1,261 @@
-import { useState } from "react";
-import { Link, useLocation } from "wouter";
-import { Search, Menu, X, GraduationCap } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useIsMobile } from "@/hooks/use-mobile";
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export default function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [location] = useLocation();
-  const isMobile = useIsMobile();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const token = localStorage.getItem("tm_token");
+  const username = localStorage.getItem("userName") || "User";
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      window.location.href = `/tutors?search=${encodeURIComponent(searchQuery)}`;
-    }
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuOpen && headerRef.current && !headerRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, [menuOpen]);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  const logout = () => {
+    localStorage.removeItem("tm_token");
+    localStorage.removeItem("userName");
+    setMenuOpen(false);
+    navigate("/login");
   };
 
+  const commonLinks = [
+    { to: "/", label: "Home" },
+    { to: "/courses", label: "Courses" },
+    { to: "/tutors", label: "Tutors" },
+  ];
+
+  // Removed Dashboard from authLinks
+  const authLinks = [
+    { to: "/my-bookings", label: "My Bookings" },
+  ];
+
   return (
-    <header className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center">
-            <div className="flex-shrink-0 flex items-center hover:opacity-80 transition-opacity">
-              <GraduationCap className="text-primary text-2xl mr-2" />
-              <span className="font-bold text-xl text-gray-900">TutorMitra</span>
-            </div>
-          </Link>
+    <header
+      className="bg-primary text-white sticky top-0 z-50 shadow-lg backdrop-blur-md bg-opacity-90 rounded-b-xl font-heading"
+      ref={headerRef}
+      role="banner"
+    >
+      {/* Mobile top bar */}
+      <div className="md:hidden flex items-center justify-between px-5 py-3 border-b border-accent">
+        <button
+          aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="text-3xl bg-background text-primary hover:text-accent focus:outline-none rounded z-30 transition-colors duration-300"
+        >
+          {menuOpen ? "×" : "☰"}
+        </button>
 
-          {/* Search Bar - Desktop */}
-          {!isMobile && (
-            <div className="flex-1 max-w-2xl mx-8">
-              <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 h-4 w-4 top-1/2 transform -translate-y-1/2 left-3" />
-                <Input
-                  type="text"
-                  placeholder="Search subjects, tutors, or topics..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white placeholder-gray-500 focus:ring-1 focus:ring-primary focus:border-primary"
-                />
-              </form>
-            </div>
-          )}
+        <button
+          onClick={() => navigate("/")}
+          aria-label="Go to TutorMitra Home"
+          className="bg-accent text-primary font-extrabold text-2xl px-8 py-2 rounded shadow-md hover:shadow-lg transition duration-300 tracking-wider"
+        >
+          TutorMitra
+        </button>
+      </div>
 
-          {/* Navigation - Desktop */}
-          {!isMobile && (
-            <nav className="flex items-center space-x-8">
-              <Link 
-                href="/tutors" 
-                className={`font-medium transition-colors ${
-                  location === '/tutors' 
-                    ? 'text-primary' 
-                    : 'text-gray-700 hover:text-primary'
-                }`}
-              >
-                Find Tutors
-              </Link>
-              <a 
-                href="#" 
-                className="text-gray-700 hover:text-primary font-medium transition-colors"
-              >
-                Become a Tutor
-              </a>
-              <a 
-                href="#" 
-                className="text-gray-700 hover:text-primary font-medium transition-colors"
-              >
-                How it Works
-              </a>
-            </nav>
-          )}
-
-          {/* User Actions */}
-          <div className="flex items-center space-x-4">
-            {!isMobile && (
-              <>
-                <Button variant="ghost" className="text-gray-700 hover:text-primary font-medium">
-                  Sign In
-                </Button>
-                <Button className="bg-primary text-white font-medium hover:bg-primary/90">
-                  Get Started
-                </Button>
-              </>
-            )}
-            
-            {/* Mobile menu button */}
-            {isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="text-gray-700"
-              >
-                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </Button>
-            )}
+      {/* Logo & Brand desktop */}
+      <div className="hidden md:flex items-center justify-between py-5 px-10 max-w-7xl mx-auto">
+        <div className="flex items-center space-x-6 cursor-pointer select-none" onClick={() => navigate("/")}>
+          <img
+            src="/logo.png"
+            alt="TutorMitra Logo"
+            draggable={false}
+            className="w-32 h-32 object-contain rounded-lg shadow-md hover:scale-105 transition-transform duration-300"
+          />
+          <div>
+            <h1 className="text-background font-extrabold text-4xl leading-tight drop-shadow-md tracking-wide">
+              TutorMitra
+            </h1>
+            <p className="text-background/90 text-lg mt-1 font-semibold max-w-md drop-shadow-sm">
+              Find Your Perfect Teacher for Offline Coaching
+            </p>
           </div>
         </div>
 
-        {/* Mobile Menu */}
-        {isMobile && isMenuOpen && (
-          <div className="border-t border-gray-200 py-4 space-y-4">
-            {/* Mobile Search */}
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search subjects, tutors..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10"
-              />
-            </form>
+        {/* Desktop navigation */}
+        <nav
+          className="flex items-center space-x-10 text-background font-medium select-none"
+          aria-label="Primary navigation"
+        >
+          {commonLinks.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              className={`relative px-3 py-2 transition-all ${
+                location.pathname === to
+                  ? "text-accent underline underline-offset-8 font-semibold"
+                  : "hover:text-accent rounded-md"
+              }`}
+            >
+              {label}
+              {location.pathname === to && (
+                <span className="absolute -bottom-2 left-0 w-full border-b-4 border-accent rounded-sm"></span>
+              )}
+            </Link>
+          ))}
 
-            {/* Mobile Navigation */}
-            <nav className="space-y-2">
-              <Link 
-                href="/tutors" 
-                className="block py-2 text-gray-700 hover:text-primary font-medium"
-                onClick={() => setIsMenuOpen(false)}
+          {token &&
+            authLinks.map(({ to, label }) => (
+              <Link
+                key={to}
+                to={to}
+                className={`relative px-3 py-2 transition-all ${
+                  location.pathname === to
+                    ? "text-accent underline underline-offset-8 font-semibold"
+                    : "hover:text-accent rounded-md"
+                }`}
               >
-                Find Tutors
+                {label}
+                {location.pathname === to && (
+                  <span className="absolute -bottom-2 left-0 w-full border-b-4 border-accent rounded-sm"></span>
+                )}
               </Link>
-              <a 
-                href="#" 
-                className="block py-2 text-gray-700 hover:text-primary font-medium"
-              >
-                Become a Tutor
-              </a>
-              <a 
-                href="#" 
-                className="block py-2 text-gray-700 hover:text-primary font-medium"
-              >
-                How it Works
-              </a>
-            </nav>
+            ))}
 
-            {/* Mobile Actions */}
-            <div className="flex space-x-4 pt-4 border-t border-gray-200">
-              <Button variant="outline" className="flex-1">
-                Sign In
-              </Button>
-              <Button className="flex-1 bg-primary text-white hover:bg-primary/90">
-                Get Started
-              </Button>
-            </div>
-          </div>
-        )}
+          {token ? (
+            <>
+              {/* Removed "Hi, username" greeting */}
+
+              <Link
+                to="/profile"
+                className="px-3 py-2 font-semibold hover:text-accent rounded transition"
+                aria-label="Profile"
+                title="Profile"
+              >
+                Profile
+              </Link>
+              <button
+                onClick={logout}
+                className="ml-6 px-5 py-2 bg-accent text-primary rounded font-semibold shadow-md hover:shadow-lg transition"
+                aria-label="Logout"
+                title="Logout"
+                type="button"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="ml-6 px-5 py-2 font-semibold hover:text-accent rounded transition"
+                aria-label="Login"
+                title="Login"
+              >
+                Login
+              </Link>
+              <Link
+                to="/signup"
+                className="ml-3 px-5 py-2 bg-accent text-primary rounded font-semibold shadow-md hover:shadow-lg transition"
+                aria-label="Sign Up"
+                title="Sign Up"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
+        </nav>
       </div>
+
+      {/* Mobile menu */}
+      <nav
+        id="mobile-menu"
+        className={`md:hidden absolute top-full left-4 w-64 bg-background border border-accent shadow-xl rounded-xl py-5 px-6 z-30 transition-transform duration-300 ${
+          menuOpen ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0 pointer-events-none"
+        }`}
+        role="menu"
+        aria-label="Mobile navigation"
+      >
+        {commonLinks.map(({ to, label }) => (
+          <Link
+            key={to}
+            to={to}
+            role="menuitem"
+            className={`block px-5 py-3 font-semibold rounded-md mb-2 transition ${
+              location.pathname === to ? "bg-accent text-primary font-bold" : "text-primary hover:bg-accent"
+            }`}
+            onClick={() => setMenuOpen(false)}
+          >
+            {label}
+          </Link>
+        ))}
+
+        {token &&
+          authLinks.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              role="menuitem"
+              className={`block px-5 py-3 font-semibold rounded-md mb-2 transition ${
+                location.pathname === to ? "bg-accent text-primary font-bold" : "text-primary hover:bg-accent"
+              }`}
+              onClick={() => setMenuOpen(false)}
+            >
+              {label}
+            </Link>
+          ))}
+
+        {token ? (
+          <>
+            <Link
+              to="/profile"
+              role="menuitem"
+              className="block px-5 py-3 font-semibold rounded-md hover:bg-accent mb-2"
+              onClick={() => setMenuOpen(false)}
+            >
+              Profile
+            </Link>
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full text-left px-5 py-3 bg-accent text-primary rounded-md font-semibold hover:bg-background transition"
+              onClick={() => {
+                logout();
+                setMenuOpen(false);
+              }}
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link
+              to="/login"
+              role="menuitem"
+              className="block px-5 py-3 font-semibold rounded-md hover:bg-accent mb-2"
+              onClick={() => setMenuOpen(false)}
+            >
+              Login
+            </Link>
+            <Link
+              to="/signup"
+              role="menuitem"
+              className="block px-5 py-3 bg-accent text-primary rounded-md font-semibold hover:bg-background transition"
+              onClick={() => setMenuOpen(false)}
+            >
+              Sign Up
+            </Link>
+          </>
+        )}
+      </nav>
     </header>
   );
 }

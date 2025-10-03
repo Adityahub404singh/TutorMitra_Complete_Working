@@ -1,0 +1,154 @@
+import Razorpay from "razorpay";
+import crypto from "crypto";
+import Booking from "../models/BooKing.js";
+import Tutor from "../models/Tutor.js";
+import User from "../models/user.js";
+import { sendNotificationEmail } from "../utils/notificationService.js";
+import { paymentNotificationTemplate, bookingConfirmationTemplate } from "../templates/emailTemplates.js";
+
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+
+if (!razorpayKeyId || !razorpayKeySecret) {
+  throw new Error("Razorpay key ID or secret is missing in environment variables");
+}
+
+const razorpay = new Razorpay({
+  key_id: razorpayKeyId,
+  key_secret: razorpayKeySecret,
+});
+
+// Create Razorpay order
+export const createOrder = async (req, res) => {
+  try {
+    const { bookingId, amount } = req.body;
+    if (!bookingId || !amount) {
+      return res.status(400).json({ message: "bookingId and amount are required" });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking || booking.paymentStatus === "success") {
+      return res.status(400).json({ message: "Invalid booking or already paid" });
+    }
+
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // amount in paise
+      currency: "INR",
+      receipt: `tm-booking-${bookingId}`,
+      payment_capture: 1,
+    });
+
+    res.json({
+      orderId: order.id,
+      razorpayKey: razorpayKeyId,
+      amount: order.amount,
+    });
+  } catch (error) {
+    console.error("Error creating Razorpay order:", error);
+    res.status(500).json({ message: "Failed to create payment order" });
+  }
+};
+
+// Payment verification controller
+export const verifyPayment = async (req, res) => {
+  try {
+    const {
+      bookingId,
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    } = req.body;
+
+    if (
+      !bookingId ||
+      !razorpay_order_id ||
+      !razorpay_payment_id ||
+      !razorpay_signature
+    ) {
+      return res.status(400).json({ message: "Missing payment details" });
+    }
+
+    const generatedSignature = crypto
+      .createHmac("sha256", razorpayKeySecret)
+      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .digest("hex");
+
+    if (generatedSignature !== razorpay_signature) {
+      await Booking.findByIdAndUpdate(bookingId, { paymentStatus: "failed" });
+      return res.status(400).json({ message: "Payment verification failed: signature mismatch" });
+    }
+
+    const booking = await Booking.findByIdAndUpdate(
+      bookingId,
+      {
+        paymentStatus: "success",
+        status: "confirmed",
+        canChat: true,
+        privateDetailsUnlocked: true,
+      },
+      { new: true }
+    );
+
+    // Email notifications for tutor and student
+    try {
+      const tutor = await Tutor.findById(booking.tutor);
+      const student = await User.findById(booking.student);
+
+      // Tutor Payment Notification
+      if (tutor?.email) {
+        await sendNotificationEmail({
+          to: tutor.email,
+          subject: "New Paid Booking | TutorMitra",
+          html: paymentNotificationTemplate({
+            name: tutor.name,
+            amount: booking.amount,
+            status: "Received",
+          }),
+        });
+
+        // Booking Confirmation Email for Tutor (optional)
+        await sendNotificationEmail({
+          to: tutor.email,
+          subject: "Booking Confirmed | TutorMitra",
+          html: bookingConfirmationTemplate({
+            name: tutor.name,
+            courseName: booking.courseName,
+            time: `${booking.sessionDate} at ${booking.sessionTime}`,
+            tutorName: tutor.name,
+          }),
+        });
+      }
+
+      // Student Payment Confirmation
+      if (student?.email) {
+        await sendNotificationEmail({
+          to: student.email,
+          subject: "Payment Success & Booking Confirmed | TutorMitra",
+          html: paymentNotificationTemplate({
+            name: student.name,
+            amount: booking.amount,
+            status: "Successful",
+          }),
+        });
+
+        await sendNotificationEmail({
+          to: student.email,
+          subject: "Session Booking Confirmed | TutorMitra",
+          html: bookingConfirmationTemplate({
+            name: student.name,
+            courseName: booking.courseName,
+            time: `${booking.sessionDate} at ${booking.sessionTime}`,
+            tutorName: tutor.name,
+          }),
+        });
+      }
+    } catch (err) {
+      console.error("Error sending payment emails:", err);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Payment verification error:", error);
+    res.status(500).json({ message: "Failed to verify payment", error: error.message });
+  }
+};

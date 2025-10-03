@@ -1,0 +1,11 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = true
+	symlinks = false
+	ignorecase = true
+[remote "origin"]
+	url = https://github.com/Adityahub404singh/TutorMitra_Complete_Working.git
+	tagOpt = --no-tags
+	fetch = +refs/*:refs/*
+	mirror = true

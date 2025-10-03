@@ -1,0 +1,32 @@
+) Creversellc)Omain)
+
+#include <stdio.h)
+)
+
+Il Node structure
+A
+struct node f
+int data;
+
+struct node* next;
+);
+
+Il Function to create a new node
+
+struct node* createWode(int data) 1
+strutt node' nemode = (struct node')malloc(sizeof(struct node));
+
+newnode-)data = data;
+
+newnode-)next =NULL;
+
+return newnode;
+
+
+
+l function to insert node at the end
+
+struct node insertEnd(struct node' head, int data)
+struct node' newnode = createNode(data);
+if (head ss NULL)
+return newnode
